@@ -61,6 +61,44 @@ int prepareBuildDirectory() {
   }
 }
 
+int createBuildPlan() {
+  const fs::path sourcePath = "examples/hello/main.cpp";
+  const fs::path objectsDirectory = ".dagbuild/objects";
+
+  try {
+    if (!fs::exists(sourcePath)) {
+      std::cerr << "Error: source file does not exist: " << sourcePath.string()
+                << '\n';
+      return 1;
+    }
+
+    if (!fs::is_regular_file(sourcePath)) {
+      std::cerr << "Error: source path is not a regular file: "
+                << sourcePath.string() << '\n';
+      return 1;
+    }
+
+    if (sourcePath.extension() != ".cpp") {
+      std::cerr << "Error: expected a .cpp source file: "
+                << sourcePath.string() << '\n';
+      return 1;
+    }
+
+    fs::path objectPath = objectsDirectory / sourcePath.filename();
+    objectPath.replace_extension(".o");
+
+    std::cout << "Source: " << sourcePath.string() << '\n';
+    std::cout << "Object: " << objectPath.string() << '\n';
+    std::cout << "Build plan created successfully.\n";
+
+    return 0;
+  } catch (const fs::filesystem_error &error) {
+    std::cerr << "Error: failed to create build plan.\n";
+    std::cerr << error.what() << '\n';
+    return 1;
+  }
+}
+
 int main(int argc, char *argv[]) {
   if (argc != 2) {
     std::cerr << "Error: expected exactly one command.\n";
@@ -68,7 +106,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  std::string command = argv[1];
+  const std::string command = argv[1];
 
   if (command == "help") {
     std::cout << "DAGBuild - a minimal C++ build system\n\n";
@@ -80,7 +118,11 @@ int main(int argc, char *argv[]) {
   }
 
   if (command == "build") {
-    return prepareBuildDirectory();
+    if (prepareBuildDirectory() != 0) {
+      return 1;
+    }
+
+    return createBuildPlan();
   }
 
   if (command == "clean") {
