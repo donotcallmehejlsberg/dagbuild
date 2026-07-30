@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -61,6 +62,23 @@ int prepareBuildDirectory() {
   }
 }
 
+int compileSource(const fs::path &sourcePath, const fs::path &objectPath) {
+  const std::string command = "c++ -std=c++20 -Wall -Wextra -c \"" +
+                              sourcePath.string() + "\" -o \"" +
+                              objectPath.string() + "\"";
+
+  std::cout << "[1/1] Compiling " << sourcePath.string() << '\n';
+
+  const int result = std::system(command.c_str());
+  if (result != 0) {
+    std::cerr << "Error: compilation failed.\n";
+    return 1;
+  }
+
+  std::cout << "Compilation completed successfully.\n";
+  return 0;
+}
+
 int createBuildPlan() {
   const fs::path sourcePath = "examples/hello/main.cpp";
   const fs::path objectsDirectory = ".dagbuild/objects";
@@ -79,24 +97,24 @@ int createBuildPlan() {
     }
 
     if (sourcePath.extension() != ".cpp") {
-      std::cerr << "Error: expected a .cpp source file: "
-                << sourcePath.string() << '\n';
+      std::cerr << "Error: expected a .cpp source file: " << sourcePath.string()
+                << '\n';
       return 1;
     }
-
-    fs::path objectPath = objectsDirectory / sourcePath.filename();
-    objectPath.replace_extension(".o");
-
-    std::cout << "Source: " << sourcePath.string() << '\n';
-    std::cout << "Object: " << objectPath.string() << '\n';
-    std::cout << "Build plan created successfully.\n";
-
-    return 0;
   } catch (const fs::filesystem_error &error) {
     std::cerr << "Error: failed to create build plan.\n";
     std::cerr << error.what() << '\n';
     return 1;
   }
+
+  fs::path objectPath = objectsDirectory / sourcePath.filename();
+  objectPath.replace_extension(".o");
+
+  std::cout << "Source: " << sourcePath.string() << '\n';
+  std::cout << "Object: " << objectPath.string() << '\n';
+  std::cout << "Build plan created successfully.\n";
+
+  return compileSource(sourcePath, objectPath);
 }
 
 int main(int argc, char *argv[]) {
