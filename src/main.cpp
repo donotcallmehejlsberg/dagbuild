@@ -79,6 +79,22 @@ int compileSource(const fs::path &sourcePath, const fs::path &objectPath) {
   return 0;
 }
 
+int linkExecutable(const fs::path &objectPath, const fs::path &executablePath) {
+  const std::string command = "c++ \"" + objectPath.string() + "\" -o \"" +
+                              executablePath.string() + "\"";
+
+  std::cout << "[2/2] Linking hello" << executablePath.string() << '\n';
+
+  const int result = std::system(command.c_str());
+  if (result != 0) {
+    std::cerr << "Error: linking failed.\n";
+    return 1;
+  }
+
+  std::cerr << "Build completed successfully.\n";
+  return 0;
+}
+
 int createBuildPlan() {
   const fs::path sourcePath = "examples/hello/main.cpp";
   const fs::path objectsDirectory = ".dagbuild/objects";
@@ -110,11 +126,17 @@ int createBuildPlan() {
   fs::path objectPath = objectsDirectory / sourcePath.filename();
   objectPath.replace_extension(".o");
 
+  const fs::path executablePath = ".dagbuild/hello";
+
   std::cout << "Source: " << sourcePath.string() << '\n';
   std::cout << "Object: " << objectPath.string() << '\n';
   std::cout << "Build plan created successfully.\n";
 
-  return compileSource(sourcePath, objectPath);
+  if (compileSource(sourcePath, objectPath) != 0) {
+    return 1;
+  }
+
+  return linkExecutable(objectPath, executablePath);
 }
 
 int main(int argc, char *argv[]) {
