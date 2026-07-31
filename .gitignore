@@ -4,3 +4,4 @@ cmake-build-*/
 dagbuild
 .DS_Store
 .vscode/
+.dagbuild/

@@ -1,6 +1,6 @@
-#include <iostream>
+#include "Greeter.hpp"
 
 int main() {
-  std::cout << "Hello from example project!\n";
+  sayHello();
   return 0;
 }

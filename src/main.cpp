@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -67,7 +68,7 @@ int compileSource(const fs::path &sourcePath, const fs::path &objectPath) {
                               sourcePath.string() + "\" -o \"" +
                               objectPath.string() + "\"";
 
-  std::cout << "[1/1] Compiling " << sourcePath.string() << '\n';
+  std::cout << "Compiling " << sourcePath.filename().string() << "...\n";
 
   const int result = std::system(command.c_str());
   if (result != 0) {
@@ -79,11 +80,22 @@ int compileSource(const fs::path &sourcePath, const fs::path &objectPath) {
   return 0;
 }
 
-int linkExecutable(const fs::path &objectPath, const fs::path &executablePath) {
-  const std::string command = "c++ \"" + objectPath.string() + "\" -o \"" +
-                              executablePath.string() + "\"";
+int linkExecutable(const std::vector<fs::path> &objectPaths,
+                   const fs::path &executablePath) {
+  if (objectPaths.empty()) {
+    std::cerr << "Error: no object files to link.\n";
+    return 1;
+  }
 
-  std::cout << "[2/2] Linking hello" << executablePath.string() << '\n';
+  std::string command = "c++";
+
+  for (const fs::path &objectPath : objectPaths) {
+    command += " \"" + objectPath.string() + "\"";
+  }
+
+  command += " -o \"" + executablePath.string() + "\"";
+
+  std::cout << "Link command: " << command << '\n';
 
   const int result = std::system(command.c_str());
   if (result != 0) {
@@ -91,31 +103,46 @@ int linkExecutable(const fs::path &objectPath, const fs::path &executablePath) {
     return 1;
   }
 
-  std::cerr << "Build completed successfully.\n";
+  std::cout << "Build completed successfully.\n";
   return 0;
 }
 
 int createBuildPlan() {
-  const fs::path sourcePath = "examples/hello/main.cpp";
+  const std::vector<fs::path> sourcePaths = {"examples/hello/main.cpp",
+                                             "examples/hello/Greeter.cpp"};
+
   const fs::path objectsDirectory = ".dagbuild/objects";
+  std::vector<fs::path> objectPaths;
 
   try {
-    if (!fs::exists(sourcePath)) {
-      std::cerr << "Error: source file does not exist: " << sourcePath.string()
-                << '\n';
-      return 1;
-    }
+    for (const fs::path &sourcePath : sourcePaths) {
+      if (!fs::exists(sourcePath)) {
+        std::cerr << "Error: source file does not exist: "
+                  << sourcePath.string() << '\n';
 
-    if (!fs::is_regular_file(sourcePath)) {
-      std::cerr << "Error: source path is not a regular file: "
-                << sourcePath.string() << '\n';
-      return 1;
-    }
+        return 1;
+      }
 
-    if (sourcePath.extension() != ".cpp") {
-      std::cerr << "Error: expected a .cpp source file: " << sourcePath.string()
-                << '\n';
-      return 1;
+      if (!fs::is_regular_file(sourcePath)) {
+        std::cerr << "Error: source path is not a regular file: "
+                  << sourcePath.string() << '\n';
+
+        return 1;
+      }
+
+      if (sourcePath.extension() != ".cpp") {
+        std::cerr << "Error: expected a .cpp source file: "
+                  << sourcePath.string() << '\n';
+
+        return 1;
+      }
+
+      fs::path objectPath = objectsDirectory / sourcePath.filename();
+      objectPath.replace_extension(".o");
+      objectPaths.push_back(objectPath);
+
+      std::cout << "Source: " << sourcePath.string() << '\n';
+      std::cout << "Object: " << objectPath.string() << '\n';
     }
   } catch (const fs::filesystem_error &error) {
     std::cerr << "Error: failed to create build plan.\n";
@@ -123,20 +150,17 @@ int createBuildPlan() {
     return 1;
   }
 
-  fs::path objectPath = objectsDirectory / sourcePath.filename();
-  objectPath.replace_extension(".o");
+  std::cout << "Build plan created successfully.\n";
+
+  for (std::size_t i = 0; i < sourcePaths.size(); ++i) {
+    if (compileSource(sourcePaths[i], objectPaths[i]) != 0) {
+      return 1;
+    }
+  }
 
   const fs::path executablePath = ".dagbuild/hello";
 
-  std::cout << "Source: " << sourcePath.string() << '\n';
-  std::cout << "Object: " << objectPath.string() << '\n';
-  std::cout << "Build plan created successfully.\n";
-
-  if (compileSource(sourcePath, objectPath) != 0) {
-    return 1;
-  }
-
-  return linkExecutable(objectPath, executablePath);
+  return linkExecutable(objectPaths, executablePath);
 }
 
 int main(int argc, char *argv[]) {
