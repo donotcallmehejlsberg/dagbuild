@@ -7,7 +7,7 @@ class Builder {
  public:
   int clean();
 
-  int prepareBuildDirectory();
+  int prepareBuildDirectory(const std::filesystem::path &objectsDirectory);
 
   int compileSource(const std::filesystem::path &sourcePath,
                     const std::filesystem::path &objectPath);
@@ -25,4 +25,4 @@ class Builder {
   int createBuildPlan(const BuildTarget &target);
 };
 
-#endif // BUILDER_HPP
+#endif  // BUILDER_HPP

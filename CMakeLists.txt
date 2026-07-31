@@ -9,6 +9,7 @@ project(
 add_executable(dagbuild
   src/main.cpp
   src/Builder.cpp
+  src/ConfigParser.cpp
 )
 
 target_compile_features(dagbuild

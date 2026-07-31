@@ -1,18 +1,15 @@
-#include <cstdint>
-#include <cstdlib>
-#include <filesystem>
 #include <iostream>
+#include <optional>
 #include <string>
-#include <vector>
 
-#include "BuildTarget.hpp"
 #include "Builder.hpp"
+#include "ConfigParser.hpp"
 
 int main(int argc, char *argv[]) {
   Builder builder;
 
-  if (argc != 2) {
-    std::cerr << "Error: expected exactly one command.\n";
+  if (argc < 2) {
+    std::cerr << "Error: no command provided.\n";
     std::cerr << "Use '" << argv[0] << " help' for usage information.\n";
     return 1;
   }
@@ -22,28 +19,42 @@ int main(int argc, char *argv[]) {
   if (command == "help") {
     std::cout << "DAGBuild - a minimal C++ build system\n\n";
     std::cout << "Usage:\n";
-    std::cout << "  " << argv[0] << " build\n";
+    std::cout << "  " << argv[0] << " build <target>\n";
     std::cout << "  " << argv[0] << " clean\n";
     std::cout << "  " << argv[0] << " help\n";
     return 0;
   }
 
   if (command == "build") {
-    if (builder.prepareBuildDirectory() != 0) {
+    if (argc != 3) {
+      std::cerr << "Error: expected a target name.\n";
+      std::cerr << "Usage: " << argv[0] << " build <target>\n";
       return 1;
     }
 
-    const BuildTarget helloTarget{
-        "hello",
-        {"examples/hello/main.cpp", "examples/hello/Greeter.cpp"},
-        {"examples/hello/Greeter.hpp"},
-        ".dagbuild/objects",
-        ".dagbuild/hello"};
+    const std::string requestedTarget = argv[2];
 
-    return builder.createBuildPlan(helloTarget);
+    ConfigParser parser;
+    const std::optional<BuildTarget> target =
+        parser.parseTarget("dagbuild.conf", requestedTarget);
+
+    if (!target) {
+      return 1;
+    }
+
+    if (builder.prepareBuildDirectory(target->objectsDirectory) != 0) {
+      return 1;
+    }
+
+    return builder.createBuildPlan(*target);
   }
 
   if (command == "clean") {
+    if (argc != 2) {
+      std::cerr << "Error: clean does not accept additional arguments.\n";
+      return 1;
+    }
+
     return builder.clean();
   }
 

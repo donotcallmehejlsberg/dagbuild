@@ -31,10 +31,8 @@ int Builder::clean() {
   }
 }
 
-int Builder::prepareBuildDirectory() {
-  const std::filesystem::path buildDirectory = ".dagbuild";
-  const std::filesystem::path objectsDirectory = buildDirectory / "objects";
-
+int Builder::prepareBuildDirectory(
+    const std::filesystem::path &objectsDirectory) {
   std::cout << "Preparing build directory...\n";
   try {
     if (std::filesystem::exists(objectsDirectory)) {
@@ -206,7 +204,7 @@ int Builder::createBuildPlan(const BuildTarget &target) {
   }
 
   const std::filesystem::path executablePath = target.executablePath;
-  
+
   if (!needsLinking(objectPaths, executablePath)) {
     std::cout << "Executable is up to date: "
               << executablePath.filename().string() << '\n';
