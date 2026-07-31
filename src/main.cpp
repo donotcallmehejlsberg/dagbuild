@@ -7,6 +7,14 @@
 
 namespace fs = std::filesystem;
 
+struct BuildTarget {
+  std::string name;
+  std::vector<fs::path> sourcePaths;
+  std::vector<fs::path> headerPaths;
+  fs::path objectsDirectory;
+  fs::path executablePath;
+};
+
 int clean() {
   const fs::path path = ".dagbuild";
   if (!fs::exists(path)) {
@@ -141,17 +149,13 @@ bool needsLinking(const std::vector<fs::path> &objectPaths,
   return false;
 }
 
-int createBuildPlan() {
-  const std::vector<fs::path> sourcePaths = {"examples/hello/main.cpp",
-                                             "examples/hello/Greeter.cpp"};
+int createBuildPlan(const BuildTarget &target) {
+  std::cout << "Building target: " << target.name << '\n';
 
-  const std::vector<fs::path> headerPaths = {"examples/hello/Greeter.hpp"};
-
-  const fs::path objectsDirectory = ".dagbuild/objects";
   std::vector<fs::path> objectPaths;
 
   try {
-    for (const fs::path &sourcePath : sourcePaths) {
+    for (const fs::path &sourcePath : target.sourcePaths) {
       if (!fs::exists(sourcePath)) {
         std::cerr << "Error: source file does not exist: "
                   << sourcePath.string() << '\n';
@@ -173,7 +177,7 @@ int createBuildPlan() {
         return 1;
       }
 
-      fs::path objectPath = objectsDirectory / sourcePath.filename();
+      fs::path objectPath = target.objectsDirectory / sourcePath.filename();
       objectPath.replace_extension(".o");
       objectPaths.push_back(objectPath);
 
@@ -188,13 +192,15 @@ int createBuildPlan() {
 
   std::cout << "Build plan created successfully.\n";
 
-  for (std::size_t i = 0; i < sourcePaths.size(); ++i) {
-    if (needsCompilation(sourcePaths[i], objectPaths[i], headerPaths)) {
-      if (compileSource(sourcePaths[i], objectPaths[i]) != 0) {
+  for (std::size_t i = 0; i < target.sourcePaths.size(); ++i) {
+    if (needsCompilation(target.sourcePaths[i], objectPaths[i],
+                         target.headerPaths)) {
+      if (compileSource(target.sourcePaths[i], objectPaths[i]) != 0) {
         return 1;
       }
     } else {
-      std::cout << "Up to date: " << sourcePaths[i].filename().string() << '\n';
+      std::cout << "Up to date: " << target.sourcePaths[i].filename().string()
+                << '\n';
     }
   }
 
@@ -233,7 +239,14 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    return createBuildPlan();
+    const BuildTarget helloTarget{
+        "hello",
+        {"examples/hello/main.cpp", "examples/hello/Greeter.cpp"},
+        {"examples/hello/Greeter.hpp"},
+        ".dagbuild/objects",
+        ".dagbuild/hello"};
+
+    return createBuildPlan(helloTarget);
   }
 
   if (command == "clean") {
