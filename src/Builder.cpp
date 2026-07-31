@@ -147,31 +147,55 @@ bool Builder::needsLinking(
   return false;
 }
 
+bool Builder::isValidSourceFile(const std::filesystem::path &sourcePath) {
+  if (!std::filesystem::exists(sourcePath)) {
+    std::cerr << "Error: source file does not exist: " << sourcePath.string()
+              << '\n';
+
+    return false;
+  }
+
+  if (!std::filesystem::is_regular_file(sourcePath)) {
+    std::cerr << "Error: source path is not a regular file: "
+              << sourcePath.string() << '\n';
+
+    return false;
+  }
+
+  if (sourcePath.extension() != ".cpp") {
+    std::cerr << "Error: expected a .cpp source file: " << sourcePath.string()
+              << '\n';
+
+    return false;
+  }
+
+  return true;
+}
+
+bool Builder::compileSourcesIfNeeded(
+    const BuildTarget &target,
+    const std::vector<std::filesystem::path> &objectPaths) {
+  for (std::size_t i = 0; i < target.sourcePaths.size(); ++i) {
+    if (needsCompilation(target.sourcePaths[i], objectPaths[i],
+                         target.headerPaths)) {
+      if (compileSource(target.sourcePaths[i], objectPaths[i]) != 0) {
+        return false;
+      }
+    } else {
+      std::cout << "Up to date: " << target.sourcePaths[i].filename().string()
+                << '\n';
+    }
+  }
+  return true;
+}
+
 int Builder::createBuildPlan(const BuildTarget &target) {
   std::cout << "Building target: " << target.name << '\n';
 
   std::vector<std::filesystem::path> objectPaths;
-
   try {
     for (const std::filesystem::path &sourcePath : target.sourcePaths) {
-      if (!std::filesystem::exists(sourcePath)) {
-        std::cerr << "Error: source file does not exist: "
-                  << sourcePath.string() << '\n';
-
-        return 1;
-      }
-
-      if (!std::filesystem::is_regular_file(sourcePath)) {
-        std::cerr << "Error: source path is not a regular file: "
-                  << sourcePath.string() << '\n';
-
-        return 1;
-      }
-
-      if (sourcePath.extension() != ".cpp") {
-        std::cerr << "Error: expected a .cpp source file: "
-                  << sourcePath.string() << '\n';
-
+      if (!isValidSourceFile(sourcePath)) {
         return 1;
       }
 
@@ -190,21 +214,11 @@ int Builder::createBuildPlan(const BuildTarget &target) {
   }
 
   std::cout << "Build plan created successfully.\n";
-
-  for (std::size_t i = 0; i < target.sourcePaths.size(); ++i) {
-    if (needsCompilation(target.sourcePaths[i], objectPaths[i],
-                         target.headerPaths)) {
-      if (compileSource(target.sourcePaths[i], objectPaths[i]) != 0) {
-        return 1;
-      }
-    } else {
-      std::cout << "Up to date: " << target.sourcePaths[i].filename().string()
-                << '\n';
-    }
+  if (!compileSourcesIfNeeded(target, objectPaths)) {
+    return 1;
   }
 
   const std::filesystem::path executablePath = target.executablePath;
-
   if (!needsLinking(objectPaths, executablePath)) {
     std::cout << "Executable is up to date: "
               << executablePath.filename().string() << '\n';
