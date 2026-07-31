@@ -8,6 +8,7 @@ project(
 
 add_executable(dagbuild
   src/main.cpp
+  src/Builder.cpp
 )
 
 target_compile_features(dagbuild
