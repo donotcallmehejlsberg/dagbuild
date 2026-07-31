@@ -107,13 +107,20 @@ int linkExecutable(const std::vector<fs::path> &objectPaths,
   return 0;
 }
 
-bool needsCompilation(const fs::path &sourcePath, const fs::path &objectPath) {
+bool needsCompilation(const fs::path &sourcePath, const fs::path &objectPath,
+                      const std::vector<fs::path> &headerPaths) {
   if (!fs::exists(objectPath)) {
     return true;
   }
 
   if (fs::last_write_time(sourcePath) > fs::last_write_time(objectPath)) {
     return true;
+  }
+
+  for (const fs::path &headerPath : headerPaths) {
+    if (fs::last_write_time(headerPath) > fs::last_write_time(objectPath)) {
+      return true;
+    }
   }
 
   return false;
@@ -137,6 +144,8 @@ bool needsLinking(const std::vector<fs::path> &objectPaths,
 int createBuildPlan() {
   const std::vector<fs::path> sourcePaths = {"examples/hello/main.cpp",
                                              "examples/hello/Greeter.cpp"};
+
+  const std::vector<fs::path> headerPaths = {"examples/hello/Greeter.hpp"};
 
   const fs::path objectsDirectory = ".dagbuild/objects";
   std::vector<fs::path> objectPaths;
@@ -180,7 +189,7 @@ int createBuildPlan() {
   std::cout << "Build plan created successfully.\n";
 
   for (std::size_t i = 0; i < sourcePaths.size(); ++i) {
-    if (needsCompilation(sourcePaths[i], objectPaths[i])) {
+    if (needsCompilation(sourcePaths[i], objectPaths[i], headerPaths)) {
       if (compileSource(sourcePaths[i], objectPaths[i]) != 0) {
         return 1;
       }
