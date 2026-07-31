@@ -107,6 +107,33 @@ int linkExecutable(const std::vector<fs::path> &objectPaths,
   return 0;
 }
 
+bool needsCompilation(const fs::path &sourcePath, const fs::path &objectPath) {
+  if (!fs::exists(objectPath)) {
+    return true;
+  }
+
+  if (fs::last_write_time(sourcePath) > fs::last_write_time(objectPath)) {
+    return true;
+  }
+
+  return false;
+}
+
+bool needsLinking(const std::vector<fs::path> &objectPaths,
+                  const fs::path &executablePath) {
+  if (!fs::exists(executablePath)) {
+    return true;
+  }
+
+  for (const fs::path &objectPath : objectPaths) {
+    if (fs::last_write_time(objectPath) > fs::last_write_time(executablePath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 int createBuildPlan() {
   const std::vector<fs::path> sourcePaths = {"examples/hello/main.cpp",
                                              "examples/hello/Greeter.cpp"};
@@ -153,12 +180,23 @@ int createBuildPlan() {
   std::cout << "Build plan created successfully.\n";
 
   for (std::size_t i = 0; i < sourcePaths.size(); ++i) {
-    if (compileSource(sourcePaths[i], objectPaths[i]) != 0) {
-      return 1;
+    if (needsCompilation(sourcePaths[i], objectPaths[i])) {
+      if (compileSource(sourcePaths[i], objectPaths[i]) != 0) {
+        return 1;
+      }
+    } else {
+      std::cout << "Up to date: " << sourcePaths[i].filename().string() << '\n';
     }
   }
 
   const fs::path executablePath = ".dagbuild/hello";
+  if (!needsLinking(objectPaths, executablePath)) {
+    std::cout << "Executable is up to date: "
+              << executablePath.filename().string() << '\n';
+
+    std::cout << "Nothing to build.\n";
+    return 0;
+  }
 
   return linkExecutable(objectPaths, executablePath);
 }
