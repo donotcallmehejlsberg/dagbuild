@@ -36,6 +36,13 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
+    const std::optional<std::vector<std::string>> targetNames =
+        configParser.parseTargetNames("dagbuild.conf");
+
+    if (!targetNames.has_value()) {
+      return 1;
+    }
+
     const std::string requestedTarget = argv[2];
 
     const std::optional<BuildTarget> target =
