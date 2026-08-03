@@ -1,5 +1,6 @@
 #include "ConfigParser.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -148,6 +149,13 @@ std::optional<std::vector<std::string>> ConfigParser::parseTargetNames(
         std::cerr << "Error: target name is missing.\n";
         return std::nullopt;
       }
+
+      if (std::find(targetNames.begin(), targetNames.end(), targetName) !=
+          targetNames.end()) {
+        std::cerr << "Error: duplicate target name: " << targetName << '\n';
+        return std::nullopt;
+      }
+
       targetNames.push_back(targetName);
     }
   }
