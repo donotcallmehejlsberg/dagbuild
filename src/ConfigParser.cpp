@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -113,6 +114,44 @@ std::optional<BuildTarget> ConfigParser::parseTarget(
   }
 
   return std::nullopt;
+}
+
+std::optional<std::vector<std::string>> ConfigParser::parseTargetNames(
+    const std::filesystem::path &configPath) const {
+  std::ifstream file(configPath);
+  if (!file.is_open()) {
+    std::cerr << "Error: could not open configuration file: "
+              << configPath.string() << '\n';
+    return std::nullopt;
+  }
+
+  std::vector<std::string> targetNames;
+  std::string readLine;
+
+  while (std::getline(file, readLine)) {
+    std::istringstream lineStream(readLine);
+
+    std::string keyword;
+
+    if (!(lineStream >> keyword)) {
+      continue;
+    }
+
+    if (keyword.starts_with('#')) {
+      continue;
+    }
+
+    if (keyword == "target") {
+      std::string targetName;
+
+      if (!(lineStream >> targetName)) {
+        std::cerr << "Error: target name is missing.\n";
+        return std::nullopt;
+      }
+      targetNames.push_back(targetName);
+    }
+  }
+  return targetNames;
 }
 
 bool ConfigParser::parseSources(std::istringstream &lineStream,

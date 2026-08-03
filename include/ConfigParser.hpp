@@ -5,6 +5,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "BuildTarget.hpp"
 
@@ -13,6 +14,9 @@ class ConfigParser {
   std::optional<BuildTarget> parseTarget(
       const std::filesystem::path &configPath,
       const std::string &requestedTarget) const;
+
+  std::optional<std::vector<std::string>> parseTargetNames(
+      const std::filesystem::path &configPath) const;
 
  private:
   bool parseSources(std::istringstream &lineStream, BuildTarget &target) const;
