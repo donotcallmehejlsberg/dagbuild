@@ -5,6 +5,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "BuildTarget.hpp"
@@ -16,6 +17,9 @@ class ConfigParser {
       const std::string &requestedTarget) const;
 
   std::optional<std::vector<std::string>> parseTargetNames(
+      const std::filesystem::path &configPath) const;
+
+  std::optional<std::unordered_map<std::string, BuildTarget>> parseTargets(
       const std::filesystem::path &configPath) const;
 
  private:

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "Builder.hpp"
@@ -36,27 +37,27 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    const std::optional<std::vector<std::string>> targetNames =
-        configParser.parseTargetNames("dagbuild.conf");
-
-    if (!targetNames.has_value()) {
+    const std::optional<std::unordered_map<std::string, BuildTarget>> targets =
+        configParser.parseTargets("dagbuild.conf");
+    if (!targets.has_value()) {
       return 1;
     }
 
     const std::string requestedTarget = argv[2];
 
-    const std::optional<BuildTarget> target =
-        configParser.parseTarget("dagbuild.conf", requestedTarget);
-
-    if (!target) {
+    const auto &targetMap = targets.value();
+    const auto targetIterator = targetMap.find(requestedTarget);
+    if (targetIterator == targetMap.end()) {
+      std::cerr << "Error: target '" << requestedTarget << "' not found.\n";
       return 1;
     }
 
-    if (builder.prepareBuildDirectory(target->objectsDirectory) != 0) {
+    const BuildTarget &target = targetIterator->second;
+    if (builder.prepareBuildDirectory(target.objectsDirectory) != 0) {
       return 1;
     }
 
-    return builder.createBuildPlan(*target);
+    return builder.createBuildPlan(target);
   }
 
   if (command == "clean") {

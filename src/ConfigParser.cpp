@@ -117,6 +117,119 @@ std::optional<BuildTarget> ConfigParser::parseTarget(
   return std::nullopt;
 }
 
+std::optional<std::unordered_map<std::string, BuildTarget>>
+ConfigParser::parseTargets(const std::filesystem::path &configPath) const {
+  std::ifstream file(configPath);
+  if (!file.is_open()) {
+    std::cerr << "Error: could not open configuration file: "
+              << configPath.string() << '\n';
+    return std::nullopt;
+  }
+
+  std::unordered_map<std::string, BuildTarget> targets;
+  BuildTarget currentTarget{};
+  bool readingTarget = false;
+  std::string readLine;
+
+  while (std::getline(file, readLine)) {
+    std::istringstream lineStream(readLine);
+    std::string keyword;
+
+    if (!(lineStream >> keyword)) {
+      continue;
+    }
+
+    if (keyword.starts_with('#')) {
+      continue;
+    }
+
+    if (keyword == "target") {
+      if (readingTarget) {
+        std::cerr << "Error: missing 'end' for target '" << currentTarget.name
+                  << "'.\n";
+        return std::nullopt;
+      }
+
+      std::string targetName;
+
+      if (!(lineStream >> targetName)) {
+        std::cerr << "Error: target name is missing.\n";
+        return std::nullopt;
+      }
+
+      if (targets.contains(targetName)) {
+        std::cerr << "Error: duplicate target name: " << targetName << '\n';
+        return std::nullopt;
+      }
+
+      currentTarget = BuildTarget{};
+      currentTarget.name = targetName;
+      readingTarget = true;
+
+      continue;
+    }
+
+    if (keyword == "end") {
+      if (!readingTarget) {
+        std::cerr << "Error: unexpected 'end' outside a target.\n";
+        return std::nullopt;
+      }
+
+      if (!validateTarget(currentTarget)) {
+        return std::nullopt;
+      }
+
+      targets.emplace(currentTarget.name, currentTarget);
+      currentTarget = BuildTarget{};
+      readingTarget = false;
+
+      continue;
+    }
+
+    if (!readingTarget) {
+      std::cerr << "Error: keyword outside a target: " << keyword << '\n';
+      return std::nullopt;
+    }
+
+    if (keyword == "sources") {
+      if (!parseSources(lineStream, currentTarget)) {
+        return std::nullopt;
+      }
+      continue;
+    }
+
+    if (keyword == "headers") {
+      parseHeaders(lineStream, currentTarget);
+      continue;
+    }
+
+    if (keyword == "objects") {
+      if (!parseObjectsDirectory(lineStream, currentTarget)) {
+        return std::nullopt;
+      }
+      continue;
+    }
+
+    if (keyword == "output") {
+      if (!parseOutputPath(lineStream, currentTarget)) {
+        return std::nullopt;
+      }
+      continue;
+    }
+
+    std::cerr << "Error: unknown configuration keyword: " << keyword << '\n';
+    return std::nullopt;
+  }
+
+  if (readingTarget) {
+    std::cerr << "Error: missing 'end' for target '" << currentTarget.name
+              << "'.\n";
+    return std::nullopt;
+  }
+
+  return targets;
+}
+
 std::optional<std::vector<std::string>> ConfigParser::parseTargetNames(
     const std::filesystem::path &configPath) const {
   std::ifstream file(configPath);
