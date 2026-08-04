@@ -1,9 +1,7 @@
-#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "Builder.hpp"
 #include "ConfigParser.hpp"
@@ -75,16 +73,14 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    const std::filesystem::path configPath = "dagbuild.conf";
-    const std::optional<std::vector<std::string>> targetNames =
-        configParser.parseTargetNames(configPath);
-    if (!targetNames.has_value()) {
+    const auto targets = configParser.parseTargets("dagbuild.conf");
+    if (!targets.has_value()) {
       return 1;
     }
 
     std::cout << "Available targets:\n";
 
-    for (const std::string &targetName : targetNames.value()) {
+    for (const auto &[targetName, target] : targets.value()) {
       std::cout << "  " << targetName << '\n';
     }
 

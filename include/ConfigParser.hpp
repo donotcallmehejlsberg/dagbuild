@@ -12,13 +12,6 @@
 
 class ConfigParser {
  public:
-  std::optional<BuildTarget> parseTarget(
-      const std::filesystem::path &configPath,
-      const std::string &requestedTarget) const;
-
-  std::optional<std::vector<std::string>> parseTargetNames(
-      const std::filesystem::path &configPath) const;
-
   std::optional<std::unordered_map<std::string, BuildTarget>> parseTargets(
       const std::filesystem::path &configPath) const;
 
