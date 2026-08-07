@@ -12,6 +12,9 @@ class DependencyGraph {
 
  public:
   DependencyGraph(const std::unordered_map<std::string, BuildTarget> &targets);
+
+  std::optional<std::vector<std::string>> createBuildOrder(
+      const std::string &requestedTarget);
 };
 
 #endif
