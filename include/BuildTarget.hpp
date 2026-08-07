@@ -9,6 +9,7 @@ struct BuildTarget {
   std::string name;
   std::vector<std::filesystem::path> sourcePaths;
   std::vector<std::filesystem::path> headerPaths;
+  std::vector<std::string> dependencyNames;
   std::filesystem::path objectsDirectory;
   std::filesystem::path executablePath;
 };

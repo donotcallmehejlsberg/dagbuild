@@ -20,6 +20,12 @@ class ConfigParser {
 
   void parseHeaders(std::istringstream &lineStream, BuildTarget &target) const;
 
+  void parseDependencies(std::istringstream &lineStream,
+                         BuildTarget &target) const;
+
+  bool validateDependencies(
+      const std::unordered_map<std::string, BuildTarget> &targets) const;
+
   bool parseObjectsDirectory(std::istringstream &lineStream,
                              BuildTarget &target) const;
 

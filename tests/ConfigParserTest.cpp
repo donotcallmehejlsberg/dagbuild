@@ -106,6 +106,23 @@ TEST(ParserTest, RejectsKeywordOutsideTarget) {
   std::filesystem::remove(configPath);
 }
 
+TEST(ParserTest, RejectsDependencyOutsideTarget) {
+  const std::filesystem::path configPath =
+      "dependency_outside_target_test.conf";
+
+  {
+    std::ofstream file(configPath);
+    file << "depends core\n";
+  }
+
+  ConfigParser configParser;
+  const auto targets = configParser.parseTargets(configPath);
+
+  EXPECT_FALSE(targets.has_value());
+
+  std::filesystem::remove(configPath);
+}
+
 TEST(ParserTest, RejectsUnknownKeyword) {
   const std::filesystem::path configPath = "unknown_keyword_test.conf";
 
@@ -185,6 +202,83 @@ TEST(ParserTest, RejectsMissingOutputPath) {
   ConfigParser configParser;
   const auto targets = configParser.parseTargets(configPath);
 
+  EXPECT_FALSE(targets.has_value());
+
+  std::filesystem::remove(configPath);
+}
+
+TEST(ParserTest, ParsesDependencyNames) {
+  const std::filesystem::path configPath = "dependencies_test.conf";
+
+  {
+    std::ofstream file(configPath);
+
+    file << "target core\n"
+         << "sources core.cpp\n"
+         << "objects build/objects/core\n"
+         << "output build/core\n"
+         << "end\n\n"
+
+         << "target network\n"
+         << "sources network.cpp\n"
+         << "objects build/objects/network\n"
+         << "output build/network\n"
+         << "end\n\n"
+
+         << "target app\n"
+         << "sources main.cpp\n"
+         << "depends core network\n"
+         << "objects build/objects/app\n"
+         << "output build/app\n"
+         << "end\n";
+  }
+
+  ConfigParser configParser;
+  const auto targets = configParser.parseTargets(configPath);
+  ASSERT_TRUE(targets.has_value());
+
+  const auto &targetMap = targets.value();
+  const auto targetIterator = targetMap.find("app");
+  ASSERT_NE(targetIterator, targetMap.end());
+
+  const BuildTarget &target = targetIterator->second;
+  ASSERT_EQ(target.dependencyNames.size(), 2U);
+  ASSERT_EQ(target.dependencyNames[0], "core");
+  ASSERT_EQ(target.dependencyNames[1], "network");
+
+
+  std::filesystem::remove(configPath);
+}
+
+
+TEST(ParserTest, RejectsUnknownDependency) {
+  const std::filesystem::path configPath = "unknown_dependencies_test.conf";
+
+  {
+    std::ofstream file(configPath);
+
+    file << "target core\n"
+         << "sources core.cpp\n"
+         << "objects build/objects/core\n"
+         << "output build/core\n"
+         << "end\n\n"
+
+         << "target network\n"
+         << "sources network.cpp\n"
+         << "objects build/objects/network\n"
+         << "output build/network\n"
+         << "end\n\n"
+
+         << "target app\n"
+         << "sources main.cpp\n"
+         << "depends core ghost\n"
+         << "objects build/objects/app\n"
+         << "output build/app\n"
+         << "end\n";
+  }
+
+  ConfigParser configParser;
+  const auto targets = configParser.parseTargets(configPath);
   EXPECT_FALSE(targets.has_value());
 
   std::filesystem::remove(configPath);

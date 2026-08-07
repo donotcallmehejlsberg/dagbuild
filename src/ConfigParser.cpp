@@ -92,6 +92,11 @@ ConfigParser::parseTargets(const std::filesystem::path &configPath) const {
       continue;
     }
 
+    if (keyword == "depends") {
+      parseDependencies(lineStream, currentTarget);
+      continue;
+    }
+
     if (keyword == "objects") {
       if (!parseObjectsDirectory(lineStream, currentTarget)) {
         return std::nullopt;
@@ -113,6 +118,10 @@ ConfigParser::parseTargets(const std::filesystem::path &configPath) const {
   if (readingTarget) {
     std::cerr << "Error: missing 'end' for target '" << currentTarget.name
               << "'.\n";
+    return std::nullopt;
+  }
+
+  if (!validateDependencies(targets)) {
     return std::nullopt;
   }
 
@@ -142,6 +151,39 @@ void ConfigParser::parseHeaders(std::istringstream &lineStream,
   while (lineStream >> pathText) {
     target.headerPaths.push_back(pathText);
   }
+}
+
+void ConfigParser::parseDependencies(std::istringstream &lineStream,
+                                     BuildTarget &target) const {
+  std::string pathText;
+
+  while (lineStream >> pathText) {
+    target.dependencyNames.push_back(pathText);
+  }
+}
+
+// targets
+// ├── "core"    → BuildTarget core
+// ├── "network" → BuildTarget network
+// └── "app"     → BuildTarget app"
+// BuildTarget app: dependencyNames = ["core", "ghost"]
+
+bool ConfigParser::validateDependencies(
+    const std::unordered_map<std::string, BuildTarget> &targets) const {
+  for (const auto &t : targets) {
+    const std::string &targetName = t.first;
+    const BuildTarget &target = t.second;
+
+    for (const auto &dependencyName : target.dependencyNames) {
+      if (!targets.contains(dependencyName)) {
+        std::cerr << "Error: target '" << targetName
+                  << "' depends on unknown target '" << dependencyName
+                  << "'.\n";
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 bool ConfigParser::parseObjectsDirectory(std::istringstream &lineStream,
