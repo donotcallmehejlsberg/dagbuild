@@ -1,6 +1,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <thread>
 #include <unordered_map>
 
 #include "Builder.hpp"
@@ -35,19 +36,40 @@ int main(int argc, char *argv[]) {
   }
 
   if (command == "build") {
-    if (argc != 3) {
-      std::cerr << "Error: expected a target name.\n";
-      std::cerr << "Usage: " << argv[0] << " build <target>\n";
+    if (argc != 3 && argc != 5) {
+      std::cerr << "Usage: " << argv[0]
+                << " build <target> [--jobs <number>]\n";
       return 1;
     }
 
-    const std::string requestedTarget = argv[2];
+    int num_of_thread = 1;
+    if (argc == 5) {
+      const std::string jobs = argv[3];
+      const std::string threads = argv[4];
+      if (jobs != "--jobs") {
+        std::cerr << "Error: expected '--jobs'.\n";
+        return 1;
+      }
+
+      try {
+        num_of_thread = std::stoi(threads);
+      } catch (const std::exception &) {
+        std::cerr << "Error: jobs must be a number.\n";
+        return 1;
+      }
+
+      if (num_of_thread <= 0 || num_of_thread > 10) {
+        std::cerr << "Error: jobs must be between 1 and 10.\n";
+        return 1;
+      }
+    }
 
     const auto parsedTargets = configParser.parseTargets("dagbuild.conf");
     if (!parsedTargets.has_value()) {
       return 1;
     }
 
+    const std::string requestedTarget = argv[2];
     const auto &targetMap = parsedTargets.value();
 
     DependencyGraph dependencyGraph(targetMap);
