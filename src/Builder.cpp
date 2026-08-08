@@ -1,4 +1,5 @@
 #include "Builder.hpp"
+#include "BuildMode.hpp"
 
 #include <atomic>
 #include <cstdint>
@@ -71,10 +72,17 @@ int Builder::prepareBuildDirectory(
 }
 
 int Builder::compileSource(const std::filesystem::path &sourcePath,
-                           const std::filesystem::path &objectPath) {
-  const std::string command = "c++ -std=c++20 -Wall -Wextra -c \"" +
-                              sourcePath.string() + "\" -o \"" +
-                              objectPath.string() + "\"";
+                           const std::filesystem::path &objectPath,
+                           BuildMode buildMode) {
+  std::string command;
+
+  if (buildMode == BuildMode::Debug) {
+    command = "c++ -std=c++20 -Wall -Wextra -g -O0 -DDEBUG -c \"" +
+              sourcePath.string() + "\" -o \"" + objectPath.string() + "\"";
+  } else if (buildMode == BuildMode::Release) {
+    command = "c++ -std=c++20 -Wall -Wextra -O2 -DNDEBUG -c \"" +
+              sourcePath.string() + "\" -o \"" + objectPath.string() + "\"";
+  }
 
   std::cout << "Compiling " << sourcePath.filename().string() << "...\n";
 
@@ -183,7 +191,8 @@ bool Builder::isValidSourceFile(const std::filesystem::path &sourcePath) {
 
 bool Builder::compileSourcesIfNeeded(
     const BuildTarget &target,
-    const std::vector<std::filesystem::path> &objectPaths, int jobCount) {
+    const std::vector<std::filesystem::path> &objectPaths, int jobCount,
+    BuildMode buildMode) {
   std::queue<CompileTask> tasks;
   for (std::size_t i = 0; i < target.sourcePaths.size(); ++i) {
     if (needsCompilation(target.sourcePaths[i], objectPaths[i],
@@ -197,26 +206,26 @@ bool Builder::compileSourcesIfNeeded(
 
   std::mutex queueMutex;
   std::atomic<bool> compilationFailed{false};
-  auto workerFunction = ([&tasks, &queueMutex, &compilationFailed, this]() {
-    while (true) {
-      CompileTask task;
-      {
-        std::lock_guard<std::mutex> lock(queueMutex);
+  auto workerFunction =
+      ([&tasks, &queueMutex, &compilationFailed, buildMode, this]() {
+        while (true) {
+          CompileTask task;
+          {
+            std::lock_guard<std::mutex> lock(queueMutex);
 
-        if (compilationFailed.load() || tasks.empty()) {
-          return;
+            if (compilationFailed.load() || tasks.empty()) {
+              return;
+            }
+
+            task = tasks.front();
+            tasks.pop();
+          }
+          if (compileSource(task.sourcePath, task.objectPath, buildMode) != 0) {
+            compilationFailed.store(true);
+            return;
+          }
         }
-
-
-        task = tasks.front();
-        tasks.pop();
-      }
-      if (compileSource(task.sourcePath, task.objectPath) != 0) {
-        compilationFailed.store(true);
-        return;
-      }
-    }
-  });
+      });
 
   std::vector<std::thread> workers;
   for (int i = 0; i < jobCount; ++i) {
@@ -234,7 +243,8 @@ bool Builder::compileSourcesIfNeeded(
   return true;
 }
 
-int Builder::createBuildPlan(const BuildTarget &target, int jobCount) {
+int Builder::createBuildPlan(const BuildTarget &target, int jobCount,
+                             BuildMode buildMode) {
   std::cout << "Building target: " << target.name << '\n';
 
   std::vector<std::filesystem::path> objectPaths;
@@ -259,7 +269,7 @@ int Builder::createBuildPlan(const BuildTarget &target, int jobCount) {
   }
 
   std::cout << "Build plan created successfully.\n";
-  if (!compileSourcesIfNeeded(target, objectPaths, jobCount)) {
+  if (!compileSourcesIfNeeded(target, objectPaths, jobCount, buildMode)) {
     return 1;
   }
 

@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "BuildMode.hpp"
 #include "Builder.hpp"
 #include "ConfigParser.hpp"
 #include "DependencyGraph.hpp"
@@ -15,7 +16,8 @@ int runListCommand(
 int runBuildCommand(
     Builder &builder,
     const std::unordered_map<std::string, BuildTarget> &targetMap,
-    const std::vector<std::string> &buildOrder, int number_of_theards);
+    const std::vector<std::string> &buildOrder, int number_of_theards,
+    BuildMode buildMode);
 
 int main(int argc, char *argv[]) {
   Builder builder;
@@ -37,31 +39,47 @@ int main(int argc, char *argv[]) {
   if (command == "build") {
     if (argc != 3 && argc != 5) {
       std::cerr << "Usage: " << argv[0]
-                << " build <target> [--jobs <number>]\n";
+                << " build <target> [--jobs <number> | --mode "
+                   "<debug|release>]\n";
       return 1;
     }
 
     int num_of_thread = 1;
+    BuildMode buildMode = BuildMode::Debug;
+
     if (argc == 5) {
-      const std::string jobs = argv[3];
-      const std::string threads = argv[4];
-      if (jobs != "--jobs") {
-        std::cerr << "Error: expected '--jobs'.\n";
-        return 1;
-      }
+      const std::string option = argv[3];
+      const std::string optionValue = argv[4];
 
-      try {
-        num_of_thread = std::stoi(threads);
-      } catch (const std::exception &) {
-        std::cerr << "Error: jobs must be a number.\n";
-        return 1;
-      }
+      if (option == "--jobs") {
+        try {
+          num_of_thread = std::stoi(optionValue);
+        } catch (const std::exception &) {
+          std::cerr << "Error: jobs must be a number.\n";
+          return 1;
+        }
 
-      if (num_of_thread <= 0 || num_of_thread > 10) {
-        std::cerr << "Error: jobs must be between 1 and 10.\n";
+        if (num_of_thread <= 0 || num_of_thread > 10) {
+          std::cerr << "Error: jobs must be between 1 and 10.\n";
+          return 1;
+        }
+      } else if (option == "--mode") {
+        if (optionValue == "debug") {
+          buildMode = BuildMode::Debug;
+        } else if (optionValue == "release") {
+          buildMode = BuildMode::Release;
+        } else {
+          std::cerr << "Error: mode must be 'debug' or 'release'.\n";
+          return 1;
+        }
+      } else {
+        std::cerr << "Error: expected '--jobs' or '--mode'.\n";
         return 1;
       }
     }
+
+    std::cout << "Build mode: "
+              << (buildMode == BuildMode::Debug ? "debug" : "release") << '\n';
 
     const auto parsedTargets = configParser.parseTargets("dagbuild.conf");
     if (!parsedTargets.has_value()) {
@@ -77,7 +95,8 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    return runBuildCommand(builder, targetMap, buildOrder.value(), num_of_thread);
+    return runBuildCommand(builder, targetMap, buildOrder.value(),
+                           num_of_thread, buildMode);
   }
 
   if (command == "clean") {
@@ -106,6 +125,9 @@ void printHelp(const char *programName) {
   std::cout << "DAGBuild - a minimal C++ build system\n\n";
   std::cout << "Usage:\n";
   std::cout << "  " << programName << " build <target>\n";
+  std::cout << "  " << programName << " build <target> --jobs <number>\n";
+  std::cout << "  " << programName
+            << " build <target> --mode <debug|release>\n";
   std::cout << "  " << programName << " clean\n";
   std::cout << "  " << programName << " list\n";
   std::cout << "  " << programName << " help\n";
@@ -130,7 +152,8 @@ int runListCommand(
 int runBuildCommand(
     Builder &builder,
     const std::unordered_map<std::string, BuildTarget> &targetMap,
-    const std::vector<std::string> &buildOrder, int number_of_theards) {
+    const std::vector<std::string> &buildOrder, int number_of_theards,
+    BuildMode buildMode) {
   for (const std::string &targetName : buildOrder) {
     const auto targetIterator = targetMap.find(targetName);
 
@@ -139,13 +162,29 @@ int runBuildCommand(
       return 1;
     }
 
-    const BuildTarget &target = targetIterator->second;
+    BuildTarget target = targetIterator->second;
+    const std::string modeDirectory =
+        buildMode == BuildMode::Debug ? "debug" : "release";
+
+    if (buildMode == BuildMode::Debug) {
+      target.objectsDirectory /= modeDirectory;
+    } else {
+      target.objectsDirectory /= modeDirectory;
+    }
+
+    target.executablePath = target.executablePath.parent_path() /
+                            modeDirectory / target.executablePath.filename();
 
     if (builder.prepareBuildDirectory(target.objectsDirectory) != 0) {
       return 1;
     }
 
-    if (builder.createBuildPlan(target, number_of_theards) != 0) {
+    if (builder.prepareBuildDirectory(target.executablePath.parent_path()) !=
+        0) {
+      return 1;
+    }
+
+    if (builder.createBuildPlan(target, number_of_theards, buildMode) != 0) {
       return 1;
     }
   }
