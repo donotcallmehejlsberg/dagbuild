@@ -5,14 +5,17 @@
 
 #include "Builder.hpp"
 #include "ConfigParser.hpp"
+#include "DependencyGraph.hpp"
 
 void printHelp(const char *programName);
 
 int runListCommand(
     const std::optional<std::unordered_map<std::string, BuildTarget>> &targets);
 
-int runBuildCommand(Builder &builder, const ConfigParser &configParser,
-                    const std::string &requestedTarget);
+int runBuildCommand(
+    Builder &builder,
+    const std::unordered_map<std::string, BuildTarget> &targetMap,
+    const std::vector<std::string> &buildOrder);
 
 int main(int argc, char *argv[]) {
   Builder builder;
@@ -37,8 +40,23 @@ int main(int argc, char *argv[]) {
       std::cerr << "Usage: " << argv[0] << " build <target>\n";
       return 1;
     }
+
     const std::string requestedTarget = argv[2];
-    return runBuildCommand(builder, configParser, requestedTarget);
+
+    const auto parsedTargets = configParser.parseTargets("dagbuild.conf");
+    if (!parsedTargets.has_value()) {
+      return 1;
+    }
+
+    const auto &targetMap = parsedTargets.value();
+
+    DependencyGraph dependencyGraph(targetMap);
+    const auto buildOrder = dependencyGraph.createBuildOrder(requestedTarget);
+    if (!buildOrder) {
+      return 1;
+    }
+
+    return runBuildCommand(builder, targetMap, buildOrder.value());
   }
 
   if (command == "clean") {
@@ -88,25 +106,28 @@ int runListCommand(
   return 0;
 }
 
-int runBuildCommand(Builder &builder, const ConfigParser &configParser,
-                    const std::string &requestedTarget) {
-  const std::optional<std::unordered_map<std::string, BuildTarget>> targets =
-      configParser.parseTargets("dagbuild.conf");
-  if (!targets.has_value()) {
-    return 1;
+int runBuildCommand(
+    Builder &builder,
+    const std::unordered_map<std::string, BuildTarget> &targetMap,
+    const std::vector<std::string> &buildOrder) {
+  for (const std::string &targetName : buildOrder) {
+    const auto targetIterator = targetMap.find(targetName);
+
+    if (targetIterator == targetMap.end()) {
+      std::cerr << "Error: target '" << targetName << "' not found.\n";
+      return 1;
+    }
+
+    const BuildTarget &target = targetIterator->second;
+
+    if (builder.prepareBuildDirectory(target.objectsDirectory) != 0) {
+      return 1;
+    }
+
+    if (builder.createBuildPlan(target) != 0) {
+      return 1;
+    }
   }
 
-  const auto &targetMap = targets.value();
-  const auto targetIterator = targetMap.find(requestedTarget);
-  if (targetIterator == targetMap.end()) {
-    std::cerr << "Error: target '" << requestedTarget << "' not found.\n";
-    return 1;
-  }
-
-  const BuildTarget &target = targetIterator->second;
-  if (builder.prepareBuildDirectory(target.objectsDirectory) != 0) {
-    return 1;
-  }
-
-  return builder.createBuildPlan(target);
+  return 0;
 }
