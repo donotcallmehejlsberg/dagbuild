@@ -9,6 +9,12 @@ DependencyGraph::DependencyGraph(
 bool DependencyGraph::dfs(const std::string &currentTargetName,
                           std::unordered_map<std::string, VisitState> &states,
                           std::vector<std::string> &buildOrder) {
+  const auto targetIterator = targets_.find(currentTargetName);
+  if (targetIterator == targets_.end()) {
+    std::cerr << "Error: target '" << currentTargetName << "' not found.\n";
+    return false;
+  }
+
   const VisitState currentState = states.at(currentTargetName);
   if (currentState == VisitState::Visiting) {
     std::cerr << "Error: dependency cycle detected at target '"
@@ -21,12 +27,6 @@ bool DependencyGraph::dfs(const std::string &currentTargetName,
   }
 
   states.at(currentTargetName) = VisitState::Visiting;
-  const auto targetIterator = targets_.find(currentTargetName);
-  if (targetIterator == targets_.end()) {
-    std::cerr << "Error: target '" << currentTargetName << "' not found.\n";
-    return false;
-  }
-
   const BuildTarget &currentTarget = targetIterator->second;
   for (auto &dependencyName : currentTarget.dependencyNames) {
     if (!dfs(dependencyName, states, buildOrder)) {
