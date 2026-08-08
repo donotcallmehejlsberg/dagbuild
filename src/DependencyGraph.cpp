@@ -39,3 +39,24 @@ bool DependencyGraph::dfs(const std::string &currentTargetName,
 
   return true;
 }
+
+std::optional<std::vector<std::string>> DependencyGraph::createBuildOrder(
+    const std::string &requestedTarget) {
+  const auto targetIterator = targets_.find(requestedTarget);
+
+  if (targetIterator == targets_.end()) {
+    return std::nullopt;
+  }
+
+  std::unordered_map<std::string, VisitState> states;
+  for (const auto &target : targets_) {
+    states.emplace(target.first, VisitState::NotVisited);
+  }
+
+  std::vector<std::string> buildOrder;
+  if (!dfs(requestedTarget, states, buildOrder)) {
+    return std::nullopt;
+  }
+  
+  return buildOrder;
+}

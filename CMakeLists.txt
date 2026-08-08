@@ -11,6 +11,7 @@ add_executable(dagbuild
   src/main.cpp
   src/Builder.cpp
   src/ConfigParser.cpp
+  src/DependencyGraph.cpp
 )
 
 target_compile_features(dagbuild
@@ -65,6 +66,8 @@ add_executable(dagbuild_tests
   tests/MainTests.cpp
   tests/ConfigParserTest.cpp
   src/ConfigParser.cpp
+  tests/DependencyGraphTest.cpp
+  src/DependencyGraph.cpp
 )
 
 target_compile_features(dagbuild_tests
