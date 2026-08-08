@@ -246,10 +246,8 @@ TEST(ParserTest, ParsesDependencyNames) {
   ASSERT_EQ(target.dependencyNames[0], "core");
   ASSERT_EQ(target.dependencyNames[1], "network");
 
-
   std::filesystem::remove(configPath);
 }
-
 
 TEST(ParserTest, RejectsUnknownDependency) {
   const std::filesystem::path configPath = "unknown_dependencies_test.conf";
@@ -281,5 +279,68 @@ TEST(ParserTest, RejectsUnknownDependency) {
   const auto targets = configParser.parseTargets(configPath);
   EXPECT_FALSE(targets.has_value());
 
+  std::filesystem::remove(configPath);
+}
+
+TEST(ParserTest, ParsesValidSingleTarget) {
+  const std::filesystem::path configPath = "valid_target_test.conf";
+
+  {
+    std::ofstream file(configPath);
+
+    file << "target hello\n"
+         << "sources first.cpp\n"
+         << "objects build/hello\n"
+         << "output build/hello\n"
+         << "end\n\n";
+  }
+
+  ConfigParser configParser;
+  const auto targets = configParser.parseTargets(configPath);
+  ASSERT_TRUE(targets.has_value());
+
+  const auto &target_name = targets.value();
+  EXPECT_EQ(target_name.size(), 1U);
+  EXPECT_TRUE(target_name.contains("hello"));
+
+  std::filesystem::remove(configPath);
+}
+
+TEST(ParserTest, RejectsMissingTargetName) {
+  const std::filesystem::path configPath = "rejects_missing_target_test.conf";
+
+  {
+    std::ofstream file(configPath);
+
+    file << "target\n"
+         << "sources first.cpp\n"
+         << "objects build/hello\n"
+         << "output build/hello\n"
+         << "end\n\n";
+  }
+
+  ConfigParser configParser;
+  const auto targets = configParser.parseTargets(configPath);
+
+  EXPECT_FALSE(targets.has_value());
+  std::filesystem::remove(configPath);
+}
+
+TEST(ParserTest, RejectsMissingSources) {
+  const std::filesystem::path configPath = "rejects_source_target_test.conf";
+
+  {
+    std::ofstream file(configPath);
+
+    file << "target hello\n"
+         << "objects build/hello\n"
+         << "output build/hello\n"
+         << "end\n\n";
+  }
+
+  ConfigParser configParser;
+  const auto targets = configParser.parseTargets(configPath);
+
+  EXPECT_FALSE(targets.has_value());
   std::filesystem::remove(configPath);
 }
