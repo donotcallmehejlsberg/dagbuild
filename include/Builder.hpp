@@ -12,7 +12,7 @@ class Builder {
 
   int prepareBuildDirectory(const std::filesystem::path &objectsDirectory);
 
-  int createBuildPlan(const BuildTarget &target);
+  int createBuildPlan(const BuildTarget &target, int jobCount);
 
  private:
   int compileSource(const std::filesystem::path &sourcePath,
@@ -29,7 +29,7 @@ class Builder {
 
   bool compileSourcesIfNeeded(
       const BuildTarget &target,
-      const std::vector<std::filesystem::path> &objectPaths);
+      const std::vector<std::filesystem::path> &objectPaths, int jobCount);
 
   bool needsLinking(const std::vector<std::filesystem::path> &objectPaths,
                     const std::filesystem::path &executablePath);

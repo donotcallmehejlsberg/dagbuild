@@ -1,11 +1,20 @@
 #include "Builder.hpp"
 
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <mutex>
+#include <queue>
 #include <string>
+#include <thread>
 #include <vector>
+
+struct CompileTask {
+  std::filesystem::path sourcePath;
+  std::filesystem::path objectPath;
+};
 
 int Builder::clean() {
   const std::filesystem::path path = ".dagbuild";
@@ -174,22 +183,58 @@ bool Builder::isValidSourceFile(const std::filesystem::path &sourcePath) {
 
 bool Builder::compileSourcesIfNeeded(
     const BuildTarget &target,
-    const std::vector<std::filesystem::path> &objectPaths) {
+    const std::vector<std::filesystem::path> &objectPaths, int jobCount) {
+  std::queue<CompileTask> tasks;
   for (std::size_t i = 0; i < target.sourcePaths.size(); ++i) {
     if (needsCompilation(target.sourcePaths[i], objectPaths[i],
                          target.headerPaths)) {
-      if (compileSource(target.sourcePaths[i], objectPaths[i]) != 0) {
-        return false;
-      }
+      tasks.push({target.sourcePaths[i], objectPaths[i]});
     } else {
       std::cout << "Up to date: " << target.sourcePaths[i].filename().string()
                 << '\n';
     }
   }
+
+  std::mutex queueMutex;
+  std::atomic<bool> compilationFailed{false};
+  auto workerFunction = ([&tasks, &queueMutex, &compilationFailed, this]() {
+    while (true) {
+      CompileTask task;
+      {
+        std::lock_guard<std::mutex> lock(queueMutex);
+
+        if (compilationFailed.load() || tasks.empty()) {
+          return;
+        }
+
+
+        task = tasks.front();
+        tasks.pop();
+      }
+      if (compileSource(task.sourcePath, task.objectPath) != 0) {
+        compilationFailed.store(true);
+        return;
+      }
+    }
+  });
+
+  std::vector<std::thread> workers;
+  for (int i = 0; i < jobCount; ++i) {
+    workers.emplace_back(workerFunction);
+  }
+
+  for (std::thread &worker : workers) {
+    worker.join();
+  }
+
+  if (compilationFailed.load()) {
+    return false;
+  }
+
   return true;
 }
 
-int Builder::createBuildPlan(const BuildTarget &target) {
+int Builder::createBuildPlan(const BuildTarget &target, int jobCount) {
   std::cout << "Building target: " << target.name << '\n';
 
   std::vector<std::filesystem::path> objectPaths;
@@ -214,7 +259,7 @@ int Builder::createBuildPlan(const BuildTarget &target) {
   }
 
   std::cout << "Build plan created successfully.\n";
-  if (!compileSourcesIfNeeded(target, objectPaths)) {
+  if (!compileSourcesIfNeeded(target, objectPaths, jobCount)) {
     return 1;
   }
 

@@ -1,7 +1,6 @@
 #include <iostream>
 #include <optional>
 #include <string>
-#include <thread>
 #include <unordered_map>
 
 #include "Builder.hpp"
@@ -16,7 +15,7 @@ int runListCommand(
 int runBuildCommand(
     Builder &builder,
     const std::unordered_map<std::string, BuildTarget> &targetMap,
-    const std::vector<std::string> &buildOrder);
+    const std::vector<std::string> &buildOrder, int number_of_theards);
 
 int main(int argc, char *argv[]) {
   Builder builder;
@@ -78,7 +77,7 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    return runBuildCommand(builder, targetMap, buildOrder.value());
+    return runBuildCommand(builder, targetMap, buildOrder.value(), num_of_thread);
   }
 
   if (command == "clean") {
@@ -131,7 +130,7 @@ int runListCommand(
 int runBuildCommand(
     Builder &builder,
     const std::unordered_map<std::string, BuildTarget> &targetMap,
-    const std::vector<std::string> &buildOrder) {
+    const std::vector<std::string> &buildOrder, int number_of_theards) {
   for (const std::string &targetName : buildOrder) {
     const auto targetIterator = targetMap.find(targetName);
 
@@ -146,7 +145,7 @@ int runBuildCommand(
       return 1;
     }
 
-    if (builder.createBuildPlan(target) != 0) {
+    if (builder.createBuildPlan(target, number_of_theards) != 0) {
       return 1;
     }
   }
