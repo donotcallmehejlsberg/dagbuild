@@ -37,19 +37,19 @@ int main(int argc, char *argv[]) {
   }
 
   if (command == "build") {
-    if (argc != 3 && argc != 5) {
+    if (argc != 3 && argc != 5 && argc != 7) {
       std::cerr << "Usage: " << argv[0]
-                << " build <target> [--jobs <number> | --mode "
-                   "<debug|release>]\n";
+                << " build <target> [--jobs <number>] "
+                   "[--mode <debug|release>]\n";
       return 1;
     }
 
     int num_of_thread = 1;
     BuildMode buildMode = BuildMode::Debug;
 
-    if (argc == 5) {
-      const std::string option = argv[3];
-      const std::string optionValue = argv[4];
+    for (int i = 3; i < argc; i += 2) {
+      const std::string option = argv[i];
+      const std::string optionValue = argv[i + 1];
 
       if (option == "--jobs") {
         try {
@@ -128,6 +128,8 @@ void printHelp(const char *programName) {
   std::cout << "  " << programName << " build <target> --jobs <number>\n";
   std::cout << "  " << programName
             << " build <target> --mode <debug|release>\n";
+  std::cout << "  " << programName
+            << " build <target> --jobs <number> --mode <debug|release>\n";
   std::cout << "  " << programName << " clean\n";
   std::cout << "  " << programName << " list\n";
   std::cout << "  " << programName << " help\n";
