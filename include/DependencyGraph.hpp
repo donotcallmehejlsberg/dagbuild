@@ -1,8 +1,10 @@
 #ifndef DEPENDENCY_GRAPH_HPP
 #define DEPENDENCY_GRAPH_HPP
 
+#include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "BuildTarget.hpp"
 
