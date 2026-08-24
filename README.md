@@ -192,6 +192,18 @@ Examples:
 
 Debug mode is used by default. The accepted job count is between 1 and 10.
 
+## Exit Codes
+
+DAGBuild returns distinct exit codes so shell scripts and CI can identify the
+type of failure:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Command completed successfully. |
+| `1` | Invalid command or command-line arguments. |
+| `2` | Configuration or dependency graph error. |
+| `3` | Build, linking, filesystem, or clean error. |
+
 ## Incremental Builds
 
 Each source file is compiled into a corresponding object file:
