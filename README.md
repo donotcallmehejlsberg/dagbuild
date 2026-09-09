@@ -55,6 +55,9 @@ Command-line arguments
       main.cpp
         |
         v
+  CommandRunner
+        |
+        v
    ConfigParser
         |
         v
@@ -79,7 +82,8 @@ Compiler -> object files -> linker -> executable
   build mode, and number of compilation workers, and coordinates the complete
   build process.
 - **`ConfigParser`** reads `dagbuild.conf`, validates its contents, and creates
-  a map of target names to `BuildTarget` objects.
+  a map of target names to `BuildTarget` objects. Its parsing logic is split
+  into helpers that handle the start, properties, and end of each target.
 - **`BuildTarget`** stores the configuration of one target, including its
   source files, header files, dependencies, object directory, and output path.
 - **`DependencyGraph`** uses depth-first search to detect dependency cycles and

@@ -25,4 +25,4 @@ class DependencyGraph {
       const std::string &requestedTarget);
 };
 
-#endif
+#endif // DEPENDENCY_GRAPH_HPP
