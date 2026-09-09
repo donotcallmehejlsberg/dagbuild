@@ -12,6 +12,7 @@ add_executable(dagbuild
   src/Builder.cpp
   src/ConfigParser.cpp
   src/DependencyGraph.cpp
+  src/CommandRunner.cpp
 )
 
 target_compile_features(dagbuild
