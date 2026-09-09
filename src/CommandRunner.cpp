@@ -2,7 +2,38 @@
 
 #include <iostream>
 
+#include "Builder.hpp"
 #include "ExitCodes.hpp"
+
+void CommandRunner::runPrintHelp(const char *programName) {
+  std::cout << "DAGBuild - a minimal C++ build system\n\n";
+  std::cout << "Usage:\n";
+  std::cout << "  " << programName << " build <target>\n";
+  std::cout << "  " << programName << " build <target> --jobs <number>\n";
+  std::cout << "  " << programName
+            << " build <target> --mode <debug|release>\n";
+  std::cout << "  " << programName
+            << " build <target> --jobs <number> --mode <debug|release>\n";
+  std::cout << "  " << programName << " clean\n";
+  std::cout << "  " << programName << " list\n";
+  std::cout << "  " << programName << " help\n";
+}
+
+int CommandRunner::parseBuildMode(const std::string &optionValue,
+                                  BuildMode &buildMode) {
+  if (optionValue == "debug") {
+    buildMode = BuildMode::Debug;
+    return ExitCode::SUCCESS;
+  }
+
+  if (optionValue == "release") {
+    buildMode = BuildMode::Release;
+    return ExitCode::SUCCESS;
+  }
+
+  std::cerr << "Error: mode must be 'debug' or 'release'.\n";
+  return ExitCode::INVALID_COMMAND;
+}
 
 int CommandRunner::runListCommand(
     const std::optional<std::unordered_map<std::string, BuildTarget>>
@@ -19,7 +50,7 @@ int CommandRunner::runListCommand(
   return ExitCode::SUCCESS;
 }
 
-int CommandRunner::runBuildCommand(
+int CommandRunner::runBuild(
     Builder &builder,
     const std::unordered_map<std::string, BuildTarget> &targetMap,
     const std::vector<std::string> &buildOrder, int jobCount,
@@ -54,5 +85,12 @@ int CommandRunner::runBuildCommand(
     }
   }
 
+  return ExitCode::SUCCESS;
+}
+
+int CommandRunner::runClean(Builder &builder) {
+  if (builder.clean() != 0) {
+    return ExitCode::BUILD_ERROR;
+  }
   return ExitCode::SUCCESS;
 }

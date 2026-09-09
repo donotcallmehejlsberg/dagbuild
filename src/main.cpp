@@ -19,20 +19,6 @@ constexpr int MAXIMUM_JOB_COUNT = 10;
 
 }  // namespace
 
-void printHelp(const char *programName) {
-  std::cout << "DAGBuild - a minimal C++ build system\n\n";
-  std::cout << "Usage:\n";
-  std::cout << "  " << programName << " build <target>\n";
-  std::cout << "  " << programName << " build <target> --jobs <number>\n";
-  std::cout << "  " << programName
-            << " build <target> --mode <debug|release>\n";
-  std::cout << "  " << programName
-            << " build <target> --jobs <number> --mode <debug|release>\n";
-  std::cout << "  " << programName << " clean\n";
-  std::cout << "  " << programName << " list\n";
-  std::cout << "  " << programName << " help\n";
-}
-
 int main(int argc, char *argv[]) {
   Builder builder;
   ConfigParser configParser;
@@ -47,7 +33,7 @@ int main(int argc, char *argv[]) {
   const std::string command = argv[1];
 
   if (command == "help") {
-    printHelp(argv[0]);
+    commandRunner.runPrintHelp(argv[0]);
     return ExitCode::SUCCESS;
   }
 
@@ -80,13 +66,10 @@ int main(int argc, char *argv[]) {
           return ExitCode::INVALID_COMMAND;
         }
       } else if (option == "--mode") {
-        if (optionValue == "debug") {
-          buildMode = BuildMode::Debug;
-        } else if (optionValue == "release") {
-          buildMode = BuildMode::Release;
-        } else {
-          std::cerr << "Error: mode must be 'debug' or 'release'.\n";
-          return ExitCode::INVALID_COMMAND;
+        const int modeResult =
+            commandRunner.parseBuildMode(optionValue, buildMode);
+        if (modeResult != ExitCode::SUCCESS) {
+          return modeResult;
         }
       } else {
         std::cerr << "Error: expected '--jobs' or '--mode'.\n";
@@ -111,8 +94,8 @@ int main(int argc, char *argv[]) {
       return ExitCode::CONFIGURATION_ERROR;
     }
 
-    return commandRunner.runBuildCommand(builder, targetMap, buildOrder.value(),
-                                         jobCount, buildMode);
+    return commandRunner.runBuild(builder, targetMap, buildOrder.value(),
+                                  jobCount, buildMode);
   }
 
   if (command == "clean") {
@@ -120,10 +103,7 @@ int main(int argc, char *argv[]) {
       std::cerr << "Error: clean does not accept additional arguments.\n";
       return ExitCode::INVALID_COMMAND;
     }
-    if (builder.clean() != 0) {
-      return ExitCode::BUILD_ERROR;
-    }
-    return ExitCode::SUCCESS;
+    return commandRunner.runClean(builder);
   }
 
   if (command == "list") {
