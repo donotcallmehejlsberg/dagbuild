@@ -8,11 +8,16 @@
 
 #include "Builder.hpp"
 
+struct BuildOptions {
+  int jobCount;
+  BuildMode buildMode;
+};
+
 class CommandRunner {
  public:
   void runPrintHelp(const char *programName);
 
-  int parseBuildMode(const std::string &optionValue, BuildMode &buildMode);
+  std::optional<BuildOptions> parseBuildOptions(int argc, char *argv[]) const;
 
   int runListCommand(
       const std::optional<std::unordered_map<std::string, BuildTarget>>
@@ -25,6 +30,11 @@ class CommandRunner {
       BuildMode buildMode);
 
   int runClean(Builder &builder);
+
+ private:
+  std::optional<int> parseJobCount(const std::string &optionValue) const;
+  std::optional<BuildMode> parseBuildMode(
+      const std::string &optionValue) const;
 };
 
 #endif  // COMMAND_RUNNER_HPP

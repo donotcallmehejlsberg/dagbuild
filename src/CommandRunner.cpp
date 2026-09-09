@@ -1,9 +1,18 @@
 #include "CommandRunner.hpp"
 
+#include <exception>
 #include <iostream>
 
 #include "Builder.hpp"
 #include "ExitCodes.hpp"
+
+namespace {
+
+constexpr int DEFAULT_JOB_COUNT = 1;
+constexpr int MINIMUM_JOB_COUNT = 1;
+constexpr int MAXIMUM_JOB_COUNT = 10;
+
+}  // namespace
 
 void CommandRunner::runPrintHelp(const char *programName) {
   std::cout << "DAGBuild - a minimal C++ build system\n\n";
@@ -19,20 +28,66 @@ void CommandRunner::runPrintHelp(const char *programName) {
   std::cout << "  " << programName << " help\n";
 }
 
-int CommandRunner::parseBuildMode(const std::string &optionValue,
-                                  BuildMode &buildMode) {
+std::optional<int> CommandRunner::parseJobCount(
+    const std::string &optionValue) const {
+  int jobCount;
+  try {
+    jobCount = std::stoi(optionValue);
+  } catch (const std::exception &) {
+    std::cerr << "Error: jobs must be a number.\n";
+    return std::nullopt;
+  }
+
+  if (jobCount < MINIMUM_JOB_COUNT || jobCount > MAXIMUM_JOB_COUNT) {
+    std::cerr << "Error: jobs must be between " << MINIMUM_JOB_COUNT << " and "
+              << MAXIMUM_JOB_COUNT << ".\n";
+    return std::nullopt;
+  }
+
+  return jobCount;
+}
+
+std::optional<BuildMode> CommandRunner::parseBuildMode(
+    const std::string &optionValue) const {
   if (optionValue == "debug") {
-    buildMode = BuildMode::Debug;
-    return ExitCode::SUCCESS;
+    return BuildMode::Debug;
   }
 
   if (optionValue == "release") {
-    buildMode = BuildMode::Release;
-    return ExitCode::SUCCESS;
+    return BuildMode::Release;
   }
 
   std::cerr << "Error: mode must be 'debug' or 'release'.\n";
-  return ExitCode::INVALID_COMMAND;
+  return std::nullopt;
+}
+
+std::optional<BuildOptions> CommandRunner::parseBuildOptions(
+    int argc, char *argv[]) const {
+  BuildOptions buildOptions{DEFAULT_JOB_COUNT, BuildMode::Debug};
+
+  for (int i = 3; i < argc; i += 2) {
+    const std::string option = argv[i];
+    const std::string optionValue = argv[i + 1];
+
+    if (option == "--jobs") {
+      const auto jobCount = parseJobCount(optionValue);
+      if (!jobCount.has_value()) {
+        return std::nullopt;
+      }
+      buildOptions.jobCount = jobCount.value();
+    } else if (option == "--mode") {
+      const auto buildMode = parseBuildMode(optionValue);
+      if (!buildMode.has_value()) {
+        return std::nullopt;
+      }
+      buildOptions.buildMode = buildMode.value();
+    } else {
+      std::cerr << "Error: expected '--jobs' or '--mode'.\n";
+      return std::nullopt;
+    }
+  }
+
+  return buildOptions;
 }
 
 int CommandRunner::runListCommand(
