@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "Builder.hpp"
+#include "DependencyGraph.hpp"
 #include "ExitCodes.hpp"
 
 namespace {
@@ -88,6 +89,37 @@ std::optional<BuildOptions> CommandRunner::parseBuildOptions(
   }
 
   return buildOptions;
+}
+
+int CommandRunner::runBuildCommand(
+    Builder &builder, const ConfigParser &configParser,
+    const std::filesystem::path &configPath, int argc, char *argv[]) {
+  const auto buildOptions = parseBuildOptions(argc, argv);
+  if (!buildOptions.has_value()) {
+    return ExitCode::INVALID_COMMAND;
+  }
+
+  const int jobCount = buildOptions->jobCount;
+  const BuildMode buildMode = buildOptions->buildMode;
+
+  std::cout << "Build mode: "
+            << (buildMode == BuildMode::Debug ? "debug" : "release") << '\n';
+
+  const auto parsedTargets = configParser.parseTargets(configPath);
+  if (!parsedTargets.has_value()) {
+    return ExitCode::CONFIGURATION_ERROR;
+  }
+
+  const std::string requestedTarget = argv[2];
+  const auto &targetMap = parsedTargets.value();
+
+  DependencyGraph dependencyGraph(targetMap);
+  const auto buildOrder = dependencyGraph.createBuildOrder(requestedTarget);
+  if (!buildOrder.has_value()) {
+    return ExitCode::CONFIGURATION_ERROR;
+  }
+
+  return runBuild(builder, targetMap, buildOrder.value(), jobCount, buildMode);
 }
 
 int CommandRunner::runListCommand(

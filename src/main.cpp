@@ -1,13 +1,9 @@
 #include <iostream>
-#include <optional>
 #include <string>
-#include <unordered_map>
 
-#include "BuildMode.hpp"
 #include "Builder.hpp"
 #include "CommandRunner.hpp"
 #include "ConfigParser.hpp"
-#include "DependencyGraph.hpp"
 #include "ExitCodes.hpp"
 
 namespace {
@@ -40,34 +36,8 @@ int main(int argc, char *argv[]) {
                    "[--mode <debug|release>]\n";
       return ExitCode::INVALID_COMMAND;
     }
-
-    const auto buildOptions = commandRunner.parseBuildOptions(argc, argv);
-    if (!buildOptions.has_value()) {
-      return ExitCode::INVALID_COMMAND;
-    }
-
-    const int jobCount = buildOptions->jobCount;
-    const BuildMode buildMode = buildOptions->buildMode;
-
-    std::cout << "Build mode: "
-              << (buildMode == BuildMode::Debug ? "debug" : "release") << '\n';
-
-    const auto parsedTargets = configParser.parseTargets(CONFIG_PATH);
-    if (!parsedTargets.has_value()) {
-      return ExitCode::CONFIGURATION_ERROR;
-    }
-
-    const std::string requestedTarget = argv[2];
-    const auto &targetMap = parsedTargets.value();
-
-    DependencyGraph dependencyGraph(targetMap);
-    const auto buildOrder = dependencyGraph.createBuildOrder(requestedTarget);
-    if (!buildOrder) {
-      return ExitCode::CONFIGURATION_ERROR;
-    }
-
-    return commandRunner.runBuild(builder, targetMap, buildOrder.value(),
-                                  jobCount, buildMode);
+    return commandRunner.runBuildCommand(builder, configParser, CONFIG_PATH,
+                                         argc, argv);
   }
 
   if (command == "clean") {
