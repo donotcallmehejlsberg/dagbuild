@@ -16,6 +16,19 @@ class ConfigParser {
       const std::filesystem::path &configPath) const;
 
  private:
+  bool handleTargetStart(
+      std::istringstream &lineStream,
+      const std::unordered_map<std::string, BuildTarget> &targets,
+      BuildTarget &currentTarget, bool &readingTarget) const;
+
+  bool handleTargetEnd(
+      std::unordered_map<std::string, BuildTarget> &targets,
+      BuildTarget &currentTarget, bool &readingTarget) const;
+
+  bool handleTargetProperty(const std::string &keyword,
+                           std::istringstream &lineStream,
+                           BuildTarget &currentTarget) const;
+
   bool parseSources(std::istringstream &lineStream, BuildTarget &target) const;
 
   void parseHeaders(std::istringstream &lineStream, BuildTarget &target) const;

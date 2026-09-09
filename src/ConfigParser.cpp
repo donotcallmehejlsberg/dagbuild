@@ -33,45 +33,17 @@ ConfigParser::parseTargets(const std::filesystem::path &configPath) const {
     }
 
     if (keyword == "target") {
-      if (readingTarget) {
-        std::cerr << "Error: missing 'end' for target '" << currentTarget.name
-                  << "'.\n";
+      if (!handleTargetStart(lineStream, targets, currentTarget,
+                             readingTarget)) {
         return std::nullopt;
       }
-
-      std::string targetName;
-
-      if (!(lineStream >> targetName)) {
-        std::cerr << "Error: target name is missing.\n";
-        return std::nullopt;
-      }
-
-      if (targets.contains(targetName)) {
-        std::cerr << "Error: duplicate target name: " << targetName << '\n';
-        return std::nullopt;
-      }
-
-      currentTarget = BuildTarget{};
-      currentTarget.name = targetName;
-      readingTarget = true;
-
       continue;
     }
 
     if (keyword == "end") {
-      if (!readingTarget) {
-        std::cerr << "Error: unexpected 'end' outside a target.\n";
+      if (!handleTargetEnd(targets, currentTarget, readingTarget)) {
         return std::nullopt;
       }
-
-      if (!validateTarget(currentTarget)) {
-        return std::nullopt;
-      }
-
-      targets.emplace(currentTarget.name, currentTarget);
-      currentTarget = BuildTarget{};
-      readingTarget = false;
-
       continue;
     }
 
@@ -80,39 +52,9 @@ ConfigParser::parseTargets(const std::filesystem::path &configPath) const {
       return std::nullopt;
     }
 
-    if (keyword == "sources") {
-      if (!parseSources(lineStream, currentTarget)) {
-        return std::nullopt;
-      }
-      continue;
+    if (!handleTargetProperty(keyword, lineStream, currentTarget)) {
+      return std::nullopt;
     }
-
-    if (keyword == "headers") {
-      parseHeaders(lineStream, currentTarget);
-      continue;
-    }
-
-    if (keyword == "depends") {
-      parseDependencies(lineStream, currentTarget);
-      continue;
-    }
-
-    if (keyword == "objects") {
-      if (!parseObjectsDirectory(lineStream, currentTarget)) {
-        return std::nullopt;
-      }
-      continue;
-    }
-
-    if (keyword == "output") {
-      if (!parseOutputPath(lineStream, currentTarget)) {
-        return std::nullopt;
-      }
-      continue;
-    }
-
-    std::cerr << "Error: unknown configuration keyword: " << keyword << '\n';
-    return std::nullopt;
   }
 
   if (readingTarget) {
@@ -126,6 +68,80 @@ ConfigParser::parseTargets(const std::filesystem::path &configPath) const {
   }
 
   return targets;
+}
+
+bool ConfigParser::handleTargetStart(
+    std::istringstream &lineStream,
+    const std::unordered_map<std::string, BuildTarget> &targets,
+    BuildTarget &currentTarget, bool &readingTarget) const {
+  if (readingTarget) {
+    std::cerr << "Error: missing 'end' for target '" << currentTarget.name
+              << "'.\n";
+    return false;
+  }
+
+  std::string targetName;
+  if (!(lineStream >> targetName)) {
+    std::cerr << "Error: target name is missing.\n";
+    return false;
+  }
+
+  if (targets.contains(targetName)) {
+    std::cerr << "Error: duplicate target name: " << targetName << '\n';
+    return false;
+  }
+
+  currentTarget = BuildTarget{};
+  currentTarget.name = targetName;
+  readingTarget = true;
+  return true;
+}
+
+bool ConfigParser::handleTargetEnd(
+    std::unordered_map<std::string, BuildTarget> &targets,
+    BuildTarget &currentTarget, bool &readingTarget) const {
+  if (!readingTarget) {
+    std::cerr << "Error: unexpected 'end' outside a target.\n";
+    return false;
+  }
+
+  if (!validateTarget(currentTarget)) {
+    return false;
+  }
+
+  targets.emplace(currentTarget.name, currentTarget);
+  currentTarget = BuildTarget{};
+  readingTarget = false;
+  return true;
+}
+
+bool ConfigParser::handleTargetProperty(const std::string &keyword,
+                                       std::istringstream &lineStream,
+                                       BuildTarget &currentTarget) const {
+  if (keyword == "sources") {
+    return parseSources(lineStream, currentTarget);
+  }
+
+  if (keyword == "headers") {
+    parseHeaders(lineStream, currentTarget);
+    return true;
+  }
+
+  if (keyword == "depends") {
+    parseDependencies(lineStream, currentTarget);
+    return true;
+  }
+
+  if (keyword == "objects") {
+    return parseObjectsDirectory(lineStream, currentTarget);
+  }
+
+  if (keyword == "output") {
+    return parseOutputPath(lineStream, currentTarget);
+  }
+
+  std::cerr << "Error: unknown configuration keyword: " << keyword << '\n';
+  return false;
 }
 
 bool ConfigParser::parseSources(std::istringstream &lineStream,
